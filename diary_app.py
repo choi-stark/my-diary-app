@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import sqlite3
 import random
 
-# --- [1. 보안] 로그인 기능 (비밀번호: 1234) ---
+# --- [1. 보안] 로그인 기능 ---
 def check_password():
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
@@ -21,27 +21,24 @@ def check_password():
     return False
 
 if check_password():
-    # --- [2. 설정] 데이터베이스 (충돌 방지를 위해 v3로 업그레이드) ---
-    conn = sqlite3.connect('journal_v3.db', check_same_thread=False)
+    # --- [2. 설정] 데이터베이스 (가독성 개선을 위한 v4 업그레이드) ---
+    conn = sqlite3.connect('journal_v4.db', check_same_thread=False)
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS diary (date TEXT PRIMARY KEY, gratitude TEXT, affirmation TEXT, image_url TEXT, img_desc TEXT)')
     conn.commit()
 
-    # --- [3. 초기화] 세션 상태 (AttributeError 방지) ---
+    # --- [3. 초기화] 세션 상태 ---
     if 'stage' not in st.session_state: st.session_state.stage = 1
     if 'g_comment' not in st.session_state: st.session_state.g_comment = ""
     if 'a_comment' not in st.session_state: st.session_state.a_comment = ""
 
-    # --- [4. 기능] 한국어 명언 실시간 크롤링 ---
+    # --- [4. 기능] 한국어 명언 실시간 크롤링 (안정성 강화) ---
     def get_real_wisdom():
         try:
-            # 명언 전문 사이트에서 실시간 수집 (구조가 더 안정적인 곳으로 타겟팅)
             url = "https://search.naver.com/search.naver?where=nexearch&query=명언"
             headers = {'User-Agent': 'Mozilla/5.0'}
             res = requests.get(url, headers=headers, timeout=5)
             soup = BeautifulSoup(res.text, 'html.parser')
-            
-            # 명언 텍스트 정밀 추출
             items = soup.select('.item_list li')
             if items:
                 target = random.choice(items)
@@ -49,7 +46,6 @@ if check_password():
                 author = target.select_one('.text_area .author').get_text(strip=True)
                 return f"🇰🇷 **오늘의 지혜**\n\n> \"{text}\"\n\n- {author}"
         except: pass
-        # 크롤링 실패 시 '로봇' 같지 않은 깊이 있는 예비 멘트
         return "✨ **오늘의 문장**\n\n> \"당신이 걷는 모든 길은 결국 당신만의 고유한 빛이 될 것입니다.\""
 
     # --- [5. 기능] 사진 의미 해석 ---
@@ -102,7 +98,6 @@ if check_password():
             st.info(st.session_state.a_comment)
             st.markdown("---")
             st.markdown("### 🖼️ 오늘의 사진 한 장")
-            # 깨지지 않는 고화질 이미지 서비스 활용
             img_url = f"https://picsum.photos/seed/{now.day}/800/400"
             st.image(img_url)
             
@@ -110,8 +105,10 @@ if check_password():
             st.write(f"🔍 **사진의 해석:** {photo_desc}")
 
             if st.button("오늘의 기록 최종 저장"):
-                gratitude_all = f"{g1} / {g2} / {g3}"
-                affirmation_all = f"{a1} / {a2} / {a3}"
+                # 가독성 개선의 핵심: 줄바꿈(\n) 적용
+                gratitude_all = f"1. {g1}\n2. {g2}\n3. {g3}"
+                affirmation_all = f"1. {a1}\n2. {a2}\n3. {a3}"
+                
                 c.execute('INSERT OR REPLACE INTO diary VALUES (?, ?, ?, ?, ?)', 
                           (str(now), gratitude_all, affirmation_all, img_url, photo_desc))
                 conn.commit()
@@ -127,7 +124,9 @@ if check_password():
             row = c.fetchone()
             if row:
                 st.write(f"### 📅 {row[0]}의 기록")
-                st.info(f"**감사:** {row[1]}\n\n**확언:** {row[2]}")
+                # 히스토리에서도 줄바꿈이 적용되도록 markdown 사용
+                st.info(f"**🙏 오늘의 감사**\n\n{row[1]}")
+                st.info(f"**💪 오늘의 확언**\n\n{row[2]}")
                 st.image(row[3])
                 st.write(f"🔍 **사진의 해석:** {row[4]}")
             else: st.warning("기록이 없습니다.")
