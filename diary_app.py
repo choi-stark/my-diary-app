@@ -48,7 +48,7 @@ def check_password():
     st.title("🔒 GEVIS 개인 보안 영역")
     password = st.text_input("비밀번호를 입력하세요", type="password")
     if st.button("접속"):
-        if password == "1234":
+        if password == "3496":
             st.session_state["password_correct"] = True
             st.rerun()
         else:
@@ -138,3 +138,4 @@ if check_password():
                 st.image(row[3])
                 st.write(f"🔍 **사진의 해석:** {row[4]}")
             else: st.warning("기록이 없습니다.")
+
