@@ -11,22 +11,35 @@ c = conn.cursor()
 c.execute('CREATE TABLE IF NOT EXISTS diary (date TEXT PRIMARY KEY, gratitude TEXT, affirmation TEXT, image_url TEXT, img_desc TEXT)')
 conn.commit()
 
-# --- [기능 1] 실시간 웹 크롤링 엔진 (Goodreads 활용) ---
-def get_live_wisdom():
+# --- [기능 1] 한글 실시간 지혜 수집 엔진 ---
+def get_live_wisdom_kr():
     try:
-        # 실시간 명언 사이트에서 지혜를 수집합니다.
-        url = f"https://www.goodreads.com/quotes/tag/inspirational?page={random.randint(1, 5)}"
+        # 1. 글로벌 명언 수집 (Goodreads)
+        url = f"https://www.goodreads.com/quotes/tag/inspirational?page={random.randint(1, 10)}"
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=5)
         soup = BeautifulSoup(response.text, 'html.parser')
         quotes = soup.find_all('div', class_='quoteText')
+        
         if quotes:
             target = random.choice(quotes)
-            text = target.get_text(strip=True).split('―')[0]
+            original_text = target.get_text(strip=True).split('―')[0].replace('"', '')
             author = target.find('span', class_='authorOrTitle').get_text(strip=True)
-            return f"✨ **오늘의 실시간 영감**\n\n> \"{text}\"\n\n- {author}"
+            
+            # 2. 실시간 번역 레이어 (Google 번역 API 활용)
+            translate_url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q={original_text}"
+            t_res = requests.get(translate_url).json()
+            translated_text = "".join([s[0] for s in t_res[0]])
+            
+            return f"✨ **오늘의 실시간 영감**\n\n> \"{translated_text}\"\n\n- {author}"
     except:
-        return "✨ **오늘의 문장**\n\n> \"당신이 걷는 모든 길은 결국 당신의 빛이 될 것입니다.\""
+        # 네트워크 오류 시 본부장님을 위한 묵직한 예비 문구
+        fallbacks = [
+            "오늘이라는 선물은 당신이 어떻게 쓰느냐에 따라 기적이 됩니다.",
+            "진정한 성공은 어제보다 나은 나를 발견하는 과정에 있습니다.",
+            "당신의 생각이 당신의 세상을 만듭니다. 오늘을 긍정으로 채우십시오."
+        ]
+        return f"✨ **오늘의 문장**\n\n> \"{random.choice(fallbacks)}\""
 
 # --- [기능 2] 사진 해석 엔진 ---
 def analyze_photo_meaning(day_val):
@@ -41,14 +54,12 @@ def analyze_photo_meaning(day_val):
 def check_password():
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
-    
     if st.session_state["password_correct"]:
         return True
-
     st.title("🔒 GEVIS 개인 보안 영역")
     password = st.text_input("비밀번호를 입력하세요", type="password")
     if st.button("접속"):
-        if password == "3496":
+        if password == "1234":
             st.session_state["password_correct"] = True
             st.rerun()
         else:
@@ -57,7 +68,7 @@ def check_password():
 
 # --- [메인 로직] ---
 if check_password():
-    # 1. 초기화 (오류 방지 핵심!)
+    # 세션 상태 초기화 (AttributeError 방지)
     if 'stage' not in st.session_state: st.session_state.stage = 1
     if 'g_comment' not in st.session_state: st.session_state.g_comment = ""
     if 'a_comment' not in st.session_state: st.session_state.a_comment = ""
@@ -78,7 +89,7 @@ if check_password():
         if st.session_state.stage == 1:
             if st.button("작성완료", key="btn_g"):
                 if g1 and g2 and g3:
-                    st.session_state.g_comment = get_live_wisdom() # 실시간 크롤링
+                    st.session_state.g_comment = get_live_wisdom_kr() # 한글 크롤링
                     st.session_state.stage = 2
                     st.rerun()
                 else: st.warning("내용을 모두 작성해 주세요.")
@@ -95,7 +106,7 @@ if check_password():
             if st.session_state.stage == 2:
                 if st.button("작성완료", key="btn_a"):
                     if a1 and a2 and a3:
-                        st.session_state.a_comment = get_live_wisdom() # 한 번 더 크롤링
+                        st.session_state.a_comment = get_live_wisdom_kr() # 또 다른 한글 명언
                         st.session_state.stage = 3
                         st.rerun()
                     else: st.warning("내용을 모두 작성해 주세요.")
@@ -124,7 +135,7 @@ if check_password():
                 else: st.toast("🎊 오늘의 기록을 마쳤습니다.")
                 
                 st.success("데이터베이스에 소중히 보관되었습니다.")
-                st.session_state.stage = 1 # 초기화
+                st.session_state.stage = 1
 
     with tab2:
         st.title("📂 히스토리")
@@ -138,4 +149,3 @@ if check_password():
                 st.image(row[3])
                 st.write(f"🔍 **사진의 해석:** {row[4]}")
             else: st.warning("기록이 없습니다.")
-
