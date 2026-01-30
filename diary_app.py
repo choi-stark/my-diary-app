@@ -21,7 +21,7 @@ def check_password():
     return False
 
 if check_password():
-    # --- [2. 설정] 데이터베이스 (가독성 개선을 위한 v4 업그레이드) ---
+    # --- [2. 설정] 데이터베이스 (v4 고정) ---
     conn = sqlite3.connect('journal_v4.db', check_same_thread=False)
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS diary (date TEXT PRIMARY KEY, gratitude TEXT, affirmation TEXT, image_url TEXT, img_desc TEXT)')
@@ -32,7 +32,7 @@ if check_password():
     if 'g_comment' not in st.session_state: st.session_state.g_comment = ""
     if 'a_comment' not in st.session_state: st.session_state.a_comment = ""
 
-    # --- [4. 기능] 한국어 명언 실시간 크롤링 (안정성 강화) ---
+    # --- [4. 기능] 한국어 명언 실시간 크롤링 ---
     def get_real_wisdom():
         try:
             url = "https://search.naver.com/search.naver?where=nexearch&query=명언"
@@ -105,10 +105,8 @@ if check_password():
             st.write(f"🔍 **사진의 해석:** {photo_desc}")
 
             if st.button("오늘의 기록 최종 저장"):
-                # 가독성 개선의 핵심: 줄바꿈(\n) 적용
                 gratitude_all = f"1. {g1}\n2. {g2}\n3. {g3}"
                 affirmation_all = f"1. {a1}\n2. {a2}\n3. {a3}"
-                
                 c.execute('INSERT OR REPLACE INTO diary VALUES (?, ?, ?, ?, ?)', 
                           (str(now), gratitude_all, affirmation_all, img_url, photo_desc))
                 conn.commit()
@@ -118,16 +116,23 @@ if check_password():
 
     with tab2:
         st.title("📂 히스토리")
-        search_date = st.date_input("날짜 선택", now)
-        if st.button("조회"):
+        # 화면을 좌(1):우(3) 비율로 나눕니다.
+        col_date, col_content = st.columns([1, 3])
+        
+        with col_date:
+            st.markdown("##### 📅 날짜 선택")
+            # 일자를 누르면 자동으로 앱이 다시 실행되어 아래 쿼리가 작동합니다.
+            search_date = st.date_input("이동하고 싶은 날짜", now, label_visibility="collapsed")
+
+        with col_content:
             c.execute('SELECT * FROM diary WHERE date=?', (str(search_date),))
             row = c.fetchone()
+            
             if row:
-                st.write(f"### 📅 {row[0]}의 기록")
-                # 히스토리에서도 줄바꿈이 적용되도록 markdown 사용
+                st.markdown(f"### 📅 {row[0]}의 기록")
                 st.info(f"**🙏 오늘의 감사**\n\n{row[1]}")
                 st.info(f"**💪 오늘의 확언**\n\n{row[2]}")
-                st.image(row[3])
-                st.write(f"🔍 **사진의 해석:** {row[4]}")
-            else: st.warning("기록이 없습니다.")
-
+                st.image(row[3], use_container_width=True)
+                st.caption(f"🔍 **사진의 해석:** {row[4]}")
+            else:
+                st.warning(f"{search_date}에 작성된 기록이 없습니다. 새로운 하루를 기록해 보세요!")
