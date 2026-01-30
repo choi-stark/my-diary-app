@@ -14,8 +14,7 @@ def check_password():
     st.title("🔒 GEVIS 개인 보안 영역")
     password = st.text_input("비밀번호를 입력하세요", type="password")
     if st.button("접속"):
-        # 본부장님이 설정하신 비밀번호 3496 유지
-        if password == "3496":
+        if password == "3496": # 최본부장님 전용 비밀번호
             st.session_state["password_correct"] = True
             st.rerun()
         else: st.error("비밀번호가 일치하지 않습니다.")
@@ -33,18 +32,20 @@ if check_password():
     if 'g_comment' not in st.session_state: st.session_state.g_comment = ""
     if 'a_comment' not in st.session_state: st.session_state.a_comment = ""
 
-    # --- [4. 기능] 맞춤형 실시간 크롤링 및 멘토 엔진 ---
+    # --- [4. 기능] 맞춤형 멘토 엔진 (당근과 채찍) ---
     def get_mentor_remark():
-        # 부드러운 격려(Soft)와 냉철한 쓴소리(Bitter) 혼합
         remarks = [
             "🌸 **[응원]** 본부장님, 오늘도 충분히 잘 해내셨습니다. 스스로를 믿으세요.",
             "🌸 **[공감]** 가끔은 쉬어가도 괜찮습니다. 지치지 않는 것이 가장 중요하니까요.",
             "⚡ **[자극]** 지금 이 정도로 만족하실 건가요? 본부장님의 잠재력은 훨씬 큽니다.",
-            "⚡ **[경고]** 어제와 똑같이 살면서 다른 내일을 꿈꾸는 것은 욕심입니다. 지금 움직이세요."
+            "⚡ **[쓴소리]** 어제와 똑같이 살면서 다른 내일을 꿈꾸는 것은 욕심입니다. 지금 당장 움직이세요!",
+            "⚡ **[경고]** 편안함은 성장의 적입니다. 오늘 본부장님이 마주할 불편함이 곧 실력이 됩니다."
         ]
         return random.choice(remarks)
 
-    def get_custom_wisdom(keyword):
+    def get_custom_wisdom(type):
+        # 타입에 따라 검색어와 예비 문구를 완전히 분리
+        keyword = "인생+명언" if type == "gratitude" else "성공+동기부여+명언"
         try:
             url = f"https://search.naver.com/search.naver?where=nexearch&query={keyword}"
             headers = {'User-Agent': 'Mozilla/5.0'}
@@ -57,27 +58,19 @@ if check_password():
                 text = target.select_one('.text_area .text').get_text(strip=True)
                 author = target.select_one('.text_area .author').get_text(strip=True)
                 
-                # 감사일기(명언)와 확언일기(동기부여) 구분
-                icon = "🙏" if "동기부여" not in keyword else "🔥"
-                title = "오늘의 지혜" if "동기부여" not in keyword else "오늘의 열정"
-                
-                # 확언일기일 때만 '멘토의 쓴소리/응원' 추가
-                mentor_msg = f"\n\n---\n{get_mentor_remark()}" if "동기부여" in keyword else ""
-                
-                return f"{icon} **{title}**\n\n> \"{text}\"\n\n- {author}{mentor_msg}"
+                if type == "gratitude":
+                    return f"🙏 **오늘의 지혜**\n\n> \"{text}\"\n\n- {author}"
+                else:
+                    return f"🔥 **오늘의 열정**\n\n> \"{text}\"\n\n- {author}\n\n---\n{get_mentor_remark()}"
         except: pass
-        return "✨ **오늘의 문장**\n\n> \"당신이 걷는 모든 길은 결국 당신만의 고유한 빛이 될 것입니다.\""
+        
+        # 크롤링 실패 시 타입별 전용 예비 문구
+        if type == "gratitude":
+            return "✨ **오늘의 지혜**\n\n> \"감사는 당신의 삶을 풍요롭게 만드는 가장 빠른 마법입니다.\""
+        else:
+            return f"🚀 **오늘의 열정**\n\n> \"성공은 행동하는 사람의 몫입니다.\"\n\n---\n{get_mentor_remark()}"
 
-    # --- [5. 기능] 사진 의미 해석 ---
-    def get_photo_meaning(day_val):
-        meanings = [
-            "**[여명]** 어둠을 뚫고 나오는 빛은 본부장님의 잠재력이 현실이 되는 과정을 상징합니다.",
-            "**[고요한 호수]** 잔잔한 수면은 깊은 내면의 힘을 의미합니다. 외부의 흔들림에도 평온을 유지하세요.",
-            "**[단단한 나무]** 오늘 본부장님의 성실함이 거대한 성공의 밑거름이 될 것임을 나무의 뿌리가 말해줍니다."
-        ]
-        return meanings[day_val % len(meanings)]
-
-    # --- [6. UI] 메인 화면 ---
+    # --- [5. UI] 메인 화면 ---
     tab1, tab2 = st.tabs(["📝 오늘의 리포트", "📅 지난 기록 보기"])
 
     with tab1:
@@ -94,7 +87,7 @@ if check_password():
         if st.session_state.stage == 1:
             if st.button("작성완료", key="btn_g"):
                 if g1 and g2 and g3:
-                    st.session_state.g_comment = get_custom_wisdom("인생+명언")
+                    st.session_state.g_comment = get_custom_wisdom("gratitude")
                     st.session_state.stage = 2
                     st.rerun()
                 else: st.warning("내용을 모두 작성해 주세요.")
@@ -111,7 +104,7 @@ if check_password():
             if st.session_state.stage == 2:
                 if st.button("작성완료", key="btn_a"):
                     if a1 and a2 and a3:
-                        st.session_state.a_comment = get_custom_wisdom("성공+동기부여+명언")
+                        st.session_state.a_comment = get_custom_wisdom("affirmation")
                         st.session_state.stage = 3
                         st.rerun()
                     else: st.warning("내용을 모두 작성해 주세요.")
@@ -124,7 +117,9 @@ if check_password():
             img_url = f"https://picsum.photos/seed/{now.day}/800/400"
             st.image(img_url)
             
-            photo_desc = get_photo_meaning(now.day)
+            # 사진 해석 (v4 금고 구조 유지)
+            meanings = ["**[여명]** 본부장님의 잠재력이 현실이 되는 과정입니다.", "**[고요한 호수]** 외부 흔들림에도 평온을 유지하세요.", "**[단단한 나무]** 오늘 성실함이 거대한 성공의 밑거름이 됩니다."]
+            photo_desc = meanings[now.day % len(meanings)]
             st.write(f"🔍 **사진의 해석:** {photo_desc}")
 
             if st.button("오늘의 기록 최종 저장"):
